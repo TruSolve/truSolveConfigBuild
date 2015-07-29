@@ -1,0 +1,22 @@
+<project name="trusolve-config" default="environments" basedir="." >
+	<taskdef resource="net/sf/antcontrib/antlib.xml" />
+	
+	<property name="buildDir" value="target" />
+
+	<target name="clean">
+		<delete dir="${buildDir}" />
+	</target>
+
+	<target name="environments">
+		<for param="envFile">
+			<path>
+				<fileset dir="environments" includes="*.properties" />
+			</path>
+			<sequential>
+				<ant antfile="build-env.xml" inheritRefs="true">
+					<property name="envFile" value="@{envFile}" />
+				</ant>
+			</sequential>
+		</for>
+	</target>
+</project>

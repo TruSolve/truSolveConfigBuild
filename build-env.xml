@@ -1,0 +1,351 @@
+<project name="trusolve-config-env" default="envBuild" basedir=".">
+	<taskdef resource="net/sf/antcontrib/antlib.xml" />
+
+	<loadproperties srcFile="${envFile}" prefix="envProps" />
+	<loadproperties srcFile="build.properties" />
+	
+	<property name="buildDir" value="target" />
+
+	<target name="envBuild">
+		<local name="envName" />
+		<basename property="envName" file="${envFile}" suffix=".properties" />
+		<echo>Environment is ${envName}</echo>
+		
+		<property name="plugin_classpath" refid="maven.plugin.classpath" />
+
+		<!-- First load all of the serverType properties
+				these are set in environment/${envName}/${serverType} -->
+		<for param="serverType">
+			<path>
+				<dirset dir="environments/${envName}" includes="*" erroronmissingdir="false"/>
+			</path>
+			<sequential>
+				<local name="serverType" />
+				<basename property="serverType" file="@{serverType}" />
+				<echo>Loading properties for server type "${serverType}"</echo>
+				<!-- First load individual machine properties,
+				these are set in environment/${envName}/${serverType}/${instanceName}.properties -->
+				<for param="instanceNameProperties">
+					<path>
+						<fileset dir="environments/${envName}/${serverType}" includes="*.properties"/>
+					</path>
+					<sequential>
+						<local name="instanceName" />
+						<basename property="instanceName" file="@{instanceNameProperties}" suffix=".properties" />
+						<echo>Loading properties for instance name "${instanceName}"</echo>
+						<loadproperties srcFile="@{instanceNameProperties}" prefix="${serverType}.${instanceName}"/>
+					</sequential>
+				</for>
+				<!-- load a list for the serverType and Machine -->
+				<pathconvert property="${serverType}.INSTANCE_LIST" pathsep=",">
+					<path>
+						<fileset dir="environments/${envName}/${serverType}" includes="*.properties"/>
+					</path>
+					<chainedmapper>
+						<flattenmapper />
+						<globmapper from="*.properties" to="*" />
+					</chainedmapper>
+				</pathconvert>
+			</sequential>
+		</for>
+		<!-- Then perform transformations on the template files -->
+		<for param="serverType">
+			<path>
+				<dirset dir="environments/${envName}" includes="*"/>
+			</path>
+			<sequential>
+				<local name="serverTypeName" />
+				<basename property="serverTypeName" file="@{serverType}" />
+				<echo>Server build for server type "${serverTypeName}"</echo>
+				<local name="INSTANCE_LIST" />
+				<pathconvert property="INSTANCE_LIST" pathsep=",">
+					<path>
+						<fileset dir="environments/${envName}/${serverTypeName}" includes="*.properties" erroronmissingdir="false" />
+					</path>
+					<chainedmapper>
+						<flattenmapper />
+						<globmapper from="*.properties" to="*" />
+					</chainedmapper>
+				</pathconvert>
+				<antcall target="typeBuild">
+					<param name="envName" value="${envName}" />
+					<param name="serverType" value="${serverTypeName}" />
+					<param name="INSTANCE_LIST" value="${INSTANCE_LIST}" />
+				</antcall>
+			</sequential>
+		</for>
+		<antcall target="copyWithTransformations" inheritAll="true">
+			<param name="copySource" value="templates-environment" />
+			<param name="copyTarget" value="${buildDir}/${envName}/all" />
+			<param name="filterPropertiesFile" value="${envFile}" />
+			<param name="CRLF" value="unix" />
+			<param name="erroronmissingdir" value="false" />
+		</antcall>
+		<tar destfile="${buildDir}/all-${envName}.tar">
+			<tarfileset dir="${buildDir}/${envName}/all" includes="**/*" username="dmx" group="apps" filemode="644" dirmode="755" erroronmissingdir="false"/>
+		</tar>
+	</target>
+
+	<target name="typeBuild" depends="typeBuild-symlink,typeBuild-perhost">
+		<for param="instanceDir">
+			<path>
+				<dirset dir="${buildDir}/${envName}/serverType/${serverType}" includes="*" erroronmissingdir="false" />
+			</path>
+			<sequential>
+				<local name="instanceName"/>
+				<basename property="instanceName" file="@{instanceDir}" />
+				<tar destfile="${buildDir}/${envName}/servertars/${serverType}/${instanceName}.tar">
+					<tarfileset dir="${buildDir}/${envName}/serverType/${serverType}/${instanceName}" includes="**/*" username="dmx" group="apps" filemode="644" dirmode="755" erroronmissingdir="false"/>
+					<tarfileset dir="${buildDir}/deps/${serverType}" includes="**/*" username="dmx" group="apps" filemode="644" dirmode="755"  erroronmissingdir="false"/>
+				</tar>
+			</sequential>
+		</for>
+		<antcall target="copyWithTransformations" inheritAll="true">
+			<param name="copySource" value="templates-bundle/all" />
+			<param name="copyTarget" value="${buildDir}/${envName}/bundle/${serverType}" />
+			<param name="filterPropertiesFile" value="${envFile}" />
+			<param name="CRLF" value="unix" />
+			<param name="erroronmissingdir" value="false" />
+		</antcall>
+		<antcall target="copyWithTransformations" inheritAll="true">
+			<param name="copySource" value="templates-bundle/serverType/${serverType}" />
+			<param name="copyTarget" value="${buildDir}/${envName}/bundle/${serverType}" />
+			<param name="filterPropertiesFile" value="${envFile}" />
+			<param name="CRLF" value="unix" />
+			<param name="erroronmissingdir" value="false" />
+		</antcall>
+		<tar destfile="${buildDir}/${serverType}-${envName}.tar">
+			<tarfileset dir="${buildDir}/${envName}/bundle/${serverType}" includes="**/*" username="dmx" group="apps" filemode="644" dirmode="755" erroronmissingdir="false"/>
+			<tarfileset dir="${buildDir}/${envName}/servertars/${serverType}" includes="**/*" username="dmx" group="apps" filemode="644" dirmode="755" erroronmissingdir="false"/>
+		</tar>
+	</target>
+	
+	<target name="typeBuild-symlink" if="${useHostSymLinks}">
+		<if>
+			<length string="${INSTANCE_LIST}" when="gt" length="0" />
+			<then>
+				<delete file="${buildDir}/${envName}/bundle/${serverType}/hostlist.txt" />
+				<!-- Iterate over each machine and build -->
+				<for param="instanceName" list="${INSTANCE_LIST}">
+					<sequential>
+						<echo>Processing files for instance "@{instanceName}"</echo>
+						<antcall target="copyWithTransformations" inheritAll="true">
+							<param name="copySource" value="templates-overlay/all@appendInstanceName" />
+							<param name="copyTarget" value="${buildDir}/${envName}/servertype/${serverType}/${allExtension}" />
+							<param name="instanceName" value="@{instanceName}" /> 
+							<param name="extensionPostFix" value=".@{instanceName}" />
+							<param name="filterPropertiesFile" value="${envFile}" />
+							<param name="CRLF" value="unix" />
+							<param name="erroronmissingdir" value="false" />
+						</antcall>
+						<antcall target="copyWithTransformations" inheritAll="true">
+							<param name="copySource" value="templates-overlay/serverType@appendInstanceName/${serverType}" />
+							<param name="copyTarget" value="${buildDir}/${envName}/servertype/${serverType}/${allExtension}" />
+							<param name="instanceName" value="@{instanceName}" /> 
+							<param name="extensionPostFix" value=".@{instanceName}" />
+							<param name="filterPropertiesFile" value="${envFile}" />
+							<param name="CRLF" value="unix" />
+							<param name="erroronmissingdir" value="false" />
+						</antcall>
+						<echo file="${buildDir}/${envName}/bundle/${serverType}/hostlist.txt" append="true">@{instanceName}${line.separator}</echo>
+					</sequential>
+				</for>
+			</then>
+		</if>		
+		<echo>Processing files for ALL "${serverType}" machines</echo>
+		<antcall target="machineBuild">
+			<param name="envName" value="${envName}" />
+			<param name="instanceName" value="${allExtension}" />
+			<param name="serverType" value="${serverType}" />
+		</antcall>
+	</target>
+	
+	<target name="typeBuild-perhost" unless="${useHostSymLinks}">
+		<if>
+			<length string="${INSTANCE_LIST}" when="gt" length="0" />
+			<then>
+				<!-- Iterate over each machine and build -->
+				<delete file="${buildDir}/${envName}/bundle/${serverType}/hostlist.txt" />
+				<for param="instanceName" list="${INSTANCE_LIST}">
+					<sequential>
+						<echo>Processing files for instance "@{instanceName}"</echo>
+						<antcall target="machineBuild">
+							<param name="envName" value="${envName}" />
+							<param name="instanceName" value="@{instanceName}" />
+							<param name="serverType" value="${serverType}" />
+						</antcall>
+						<antcall target="copyWithTransformations" inheritAll="true">
+							<param name="copySource" value="templates-overlay/serverType@appendInstanceName/${serverType}" />
+							<param name="copyTarget" value="${buildDir}/${envName}/servertype/${serverType}/@{instanceName}" />
+							<param name="instanceName" value="@{instanceName}" /> 
+							<param name="filterPropertiesFile" value="${envFile}" />
+							<param name="CRLF" value="unix" />
+							<param name="erroronmissingdir" value="false" />
+						</antcall>
+						<echo file="${buildDir}/${envName}/bundle/${serverType}/hostlist.txt" append="true">@{instanceName}${line.separator}</echo>
+					</sequential>
+				</for>
+			</then>
+			<else>
+				<echo>Processing files for ALL "${serverType}" machines</echo>
+				<antcall target="machineBuild">
+					<param name="envName" value="${envName}" />
+					<param name="instanceName" value="${allExtension}" />
+					<param name="serverType" value="${serverType}" />
+				</antcall>
+			</else>
+		</if>
+	</target>
+	
+	<target name="machineBuild">
+		<antcall target="copyWithTransformations" inheritAll="true">
+			<param name="copySource" value="templates-overlay/envName/${envName}" />
+			<param name="copyTarget" value="${buildDir}/${envName}/serverType/${serverType}/${instanceName}" />
+			<param name="filterPropertiesFile" value="${envFile}" />
+			<param name="CRLF" value="unix" />
+			<param name="erroronmissingdir" value="false" />
+		</antcall>
+		<antcall target="copyWithTransformations" inheritAll="true">
+			<param name="copySource" value="templates-overlay/envName-serverType/${envName}/${serverType}" />
+			<param name="copyTarget" value="${buildDir}/${envName}/serverType/${serverType}/${instanceName}" />
+			<param name="filterPropertiesFile" value="${envFile}" />
+			<param name="CRLF" value="unix" />
+			<param name="erroronmissingdir" value="false" />
+		</antcall>
+		<antcall target="copyWithTransformations" inheritAll="true">
+			<param name="copySource" value="templates-overlay/envName-serverType-instanceName/${envName}/${serverType}/${instanceName}" />
+			<param name="copyTarget" value="${buildDir}/${envName}/serverType/${serverType}/${instanceName}" />
+			<param name="filterPropertiesFile" value="${envFile}" />
+			<param name="CRLF" value="unix" />
+			<param name="erroronmissingdir" value="false" />
+		</antcall>
+		<antcall target="copyWithTransformations" inheritAll="true">
+			<param name="copySource" value="templates-overlay/all" />
+			<param name="copyTarget" value="${buildDir}/${envName}/serverType/${serverType}/${instanceName}" />
+			<param name="filterPropertiesFile" value="${envFile}" />
+			<param name="CRLF" value="unix" />
+			<param name="erroronmissingdir" value="false" />
+		</antcall>
+		<antcall target="copyWithTransformations" inheritAll="true">
+			<param name="copySource" value="templates-overlay/serverType/${serverType}" />
+			<param name="copyTarget" value="${buildDir}/${envName}/serverType/${serverType}/${instanceName}" />
+			<param name="filterPropertiesFile" value="${envFile}" />
+			<param name="CRLF" value="unix" />
+		</antcall>
+		<for param="transformation">
+			<path>
+				<dirset dir="templates-overlay/fileTransformations" includes="*" erroronmissingdir="false" />
+			</path>
+			<sequential>
+				<local name="transformationName" />
+				<basename property="transformationName" file="@{transformation}"/>
+				<if>
+					<and>
+						<available file="@{transformation}/${serverType}" type="dir" />
+						<available file="@{transformation}/${transformationName}.sht" />
+					</and>
+					<then>
+						<antcall target="transformationCopy" inheritAll="true">
+							<param name="transformation" value="@{transformation}" />
+							<param name="transformationName" value="${transformationName}" />
+						</antcall>
+					</then>
+					<else>
+						<echo>Transformation file "@{transformation}/${transformationName}.sht" not available.</echo>
+					</else>
+				</if>
+			</sequential>
+		</for>
+	</target>
+
+	<target name="transformationCopy">
+			<echo>Tranformation processing "${transformationName}" for ${serverType} / ${instanceName}</echo>
+			<!-- First process the files through the standard template transformations -->
+			<antcall target="copyWithTransformations" inheritAll="true">
+				<param name="copySource" value="${transformation}/serverType/${serverType}" />
+				<param name="copyTarget" value="${buildDir}/${envName}/transformations/${transformationName}/${serverType}/${instanceName}" />
+				<param name="filterPropertiesFile" value="${envFile}" />
+				<param name="CRLF" value="unix" />
+				<param name="erroronmissingdir" value="false" />
+			</antcall>
+			<!-- then package the file into the tranformation template -->
+			<copy todir="${buildDir}/${envName}/serverType/${serverType}/${instanceName}">
+				<fileset dir="${buildDir}/${envName}/transformations/${transformationName}/${serverType}/${instanceName}" erroronmissingdir="false" />
+				<filterchain>
+					<filterreader classname="com.trusolve.ant.filters.ProcessTemplateScriptFilter">
+						<classpath>
+							<pathelement path="${plugin_classpath}" />
+						</classpath>
+						<param name="scriptType" value="bsh" />
+						<param name="baseScriptTemplate" value="${transformation}/${transformationName}.sht" />
+						<param name="fileName" value="${registryFile}" />
+					</filterreader>
+				</filterchain>
+			</copy>
+			<!-- if there are any final activities required for this transformation, they will be defined here -->
+			<if>
+				<available file="${transformation}/build.xml" />
+				<then>
+					<ant antfile="${transformation}/build.xml"/>
+				</then>
+			</if>
+	</target>
+
+	<target name="copyWithTransformations">
+		<property name="CRLF" value="unix" />
+		<property name="filterPropertiesFile" value="filterPropertiesFile.properties" />
+		<property name="erroronmissingdir" value="true"/>
+		<property name="extensionPostFix" value=""/>
+		<filterset id="copyFilterSet" begintoken="%%" endtoken="%%" onmissingfiltersfile="warn">
+			<filtersfile file="${filterPropertiesFile}" />
+			<filter token="envName" value="${envName}" />
+			<filter token="serverType" value="${serverType}" />
+			<filter token="instanceName" value="${instanceName}" />
+		</filterset>
+		<!-- Copy with shell template transformations first -->
+		<copy todir="${copyTarget}">
+			<fileset dir="${copySource}" erroronmissingdir="${erroronmissingdir}">
+				<type type="file" />
+				<include name="**/*.sht" />
+			</fileset>
+			<chainedmapper>
+				<globmapper from="*.sht" to="*" />
+				<globmapper from="*" to="*${extensionPostFix}"/>
+			</chainedmapper>
+			<filterchain>
+				<filterreader classname="com.trusolve.ant.filters.ScriptTemplateFilter">
+					<classpath>
+						<pathelement path="${plugin_classpath}" />
+					</classpath>
+					<param name="scriptType" value="bsh" />
+					<param name="loadBindingsRef" value="ScriptBindings" />
+				</filterreader>
+				<fixcrlf eol="${CRLF}" />
+			</filterchain>
+			<filterset refid="copyFilterSet" />
+		</copy>
+		<!-- Text files with simple token substitution -->
+		<copy todir="${copyTarget}">
+			<fileset dir="${copySource}" excludes="${BINARYCOPY}" erroronmissingdir="${erroronmissingdir}">
+				<type type="file" />
+				<exclude name="**/*.sht" />
+			</fileset>
+			<chainedmapper>
+				<globmapper from="*" to="*${extensionPostFix}"/>
+			</chainedmapper>
+			<filterchain>
+				<fixcrlf eol="${CRLF}" />
+			</filterchain>
+			<filterset refid="copyFilterSet" />
+		</copy>
+		<!-- Handle the copy of binary files -->
+		<copy todir="${copyTarget}">
+			<fileset dir="${copySource}" includes="${BINARYCOPY}" erroronmissingdir="${erroronmissingdir}">
+				<type type="file" />
+			</fileset>
+			<chainedmapper>
+				<globmapper from="*" to="*${extensionPostFix}"/>
+			</chainedmapper>
+		</copy>
+	</target>
+</project>
