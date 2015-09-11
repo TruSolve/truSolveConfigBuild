@@ -2,20 +2,53 @@
 	<taskdef resource="net/sf/antcontrib/antlib.xml" />
 	
 	<property name="buildDir" value="target" />
+	<loadproperties srcFile="build.properties" />
 
 	<target name="clean">
 		<delete dir="${buildDir}" />
 	</target>
 
+	<target name="build" depends="environments,serverType" />
+
 	<target name="environments">
 		<for param="envFile">
 			<path>
-				<fileset dir="environments" includes="*.properties" />
+				<fileset dir="environments" includes="*.properties" erroronmissingdir="false" />
 			</path>
 			<sequential>
 				<ant antfile="build-env.xml" inheritRefs="true">
 					<property name="envFile" value="@{envFile}" />
 				</ant>
+			</sequential>
+		</for>
+	</target>
+
+	<target name="serverType">
+		<pathconvert property="serverTypes" pathsep=" ">
+			<mappedresources>
+				<path>
+					<dirset dir="${buildDir}/serverType" includes="*" erroronmissingdir="false" />
+					<dirset dir="templates-serverType" includes="*" erroronmissingdir="false" />
+				</path>
+				<flattenmapper />
+			</mappedresources>
+		</pathconvert>
+		<for param="serverType">
+			<union>
+				<sort>
+					<tokens>
+						<string value="${serverTypes}" />
+						<stringtokenizer />
+					</tokens>
+				</sort>
+			</union>
+			<sequential>
+				<tar destfile="${buildDir}/${maven.project.artifactId}-allServerType-@{serverType}.tar">
+					<tarfileset dir="${buildDir}/serverType/@{serverType}" includes="**/*" excludes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
+					<tarfileset dir="${buildDir}/serverType/@{serverType}" includes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${EXECMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
+					<tarfileset dir="templates-serverType/@{serverType}" includes="**/*" excludes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
+					<tarfileset dir="templates-serverType/@{serverType}" includes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${EXECMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
+				</tar>
 			</sequential>
 		</for>
 	</target>
