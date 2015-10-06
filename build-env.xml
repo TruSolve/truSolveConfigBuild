@@ -17,7 +17,7 @@
 				these are set in environment/${envName}/${serverType} -->
 		<for param="serverType">
 			<path>
-				<dirset dir="environments/${envName}" includes="*" erroronmissingdir="false" />
+				<dirset dir="environments/${envName}" includes="*" erroronmissingdir="false"/>
 			</path>
 			<sequential>
 				<local name="serverType" />
@@ -27,19 +27,19 @@
 				these are set in environment/${envName}/${serverType}/${instanceName}.properties -->
 				<for param="instanceNameProperties">
 					<path>
-						<fileset dir="environments/${envName}/${serverType}" includes="*.properties" />
+						<fileset dir="environments/${envName}/${serverType}" includes="*.properties"/>
 					</path>
 					<sequential>
 						<local name="instanceName" />
 						<basename property="instanceName" file="@{instanceNameProperties}" suffix=".properties" />
 						<echo>Loading properties for instance name "${instanceName}"</echo>
-						<loadproperties srcFile="@{instanceNameProperties}" prefix="${serverType}.${instanceName}" />
+						<loadproperties srcFile="@{instanceNameProperties}" prefix="${serverType}.${instanceName}"/>
 					</sequential>
 				</for>
 				<!-- load a list for the serverType and Machine -->
 				<pathconvert property="${serverType}.INSTANCE_LIST" pathsep=",">
 					<path>
-						<fileset dir="environments/${envName}/${serverType}" includes="*.properties" />
+						<fileset dir="environments/${envName}/${serverType}" includes="*.properties"/>
 					</path>
 					<chainedmapper>
 						<flattenmapper />
@@ -51,7 +51,7 @@
 		<!-- Then perform transformations on the template files -->
 		<for param="serverType">
 			<path>
-				<dirset dir="environments/${envName}" includes="*" />
+				<dirset dir="environments/${envName}" includes="*"/>
 			</path>
 			<sequential>
 				<local name="serverTypeName" />
@@ -82,9 +82,9 @@
 			<param name="erroronmissingdir" value="false" />
 		</antcall>
 		<tar destfile="${buildDir}/${maven.project.artifactId}-all-${envName}.tar">
-			<tarfileset dir="${buildDir}/environments/${envName}/all" includes="**/*" excludes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
-			<tarfileset dir="${buildDir}/environments/${envName}/all" includes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${EXECMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
-			<tarfileset dir="${buildDir}" includes="*-buildversion.xml" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
+			<tarfileset dir="${buildDir}/environments/${envName}/all" includes="**/*" excludes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false"/>
+			<tarfileset dir="${buildDir}/environments/${envName}/all" includes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${EXECMODE}" dirmode="${DIRMODE}" erroronmissingdir="false"/>
+			<tarfileset dir="${buildDir}" includes="*-buildversion.properties" prefix="META-INF" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false"/>
 		</tar>
 	</target>
 
@@ -94,13 +94,13 @@
 				<dirset dir="${buildDir}/environments/${envName}/serverType/${serverType}" includes="*" erroronmissingdir="false" />
 			</path>
 			<sequential>
-				<local name="instanceName" />
+				<local name="instanceName"/>
 				<basename property="instanceName" file="@{instanceDir}" />
 				<tar destfile="${buildDir}/environments/${envName}/serverTars/${serverType}/${instanceName}.tar">
-					<tarfileset dir="${buildDir}/environments/${envName}/serverType/${serverType}/${instanceName}" includes="**/*" excludes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
-					<tarfileset dir="${buildDir}/environments/${envName}/serverType/${serverType}/${instanceName}" includes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${EXECMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
-					<tarfileset dir="${buildDir}/deps/${serverType}" includes="**/*" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
-					<tarfileset dir="${buildDir}" includes="*-buildversion.xml" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
+					<tarfileset dir="${buildDir}/environments/${envName}/serverType/${serverType}/${instanceName}" includes="**/*" excludes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false"/>
+					<tarfileset dir="${buildDir}/environments/${envName}/serverType/${serverType}/${instanceName}" includes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${EXECMODE}" dirmode="${DIRMODE}" erroronmissingdir="false"/>
+					<tarfileset dir="${buildDir}/deps/${serverType}" includes="**/*" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}"  erroronmissingdir="false"/>
+					<tarfileset dir="${buildDir}" includes="*-buildversion.properties" prefix="META-INF" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false"/>
 				</tar>
 			</sequential>
 		</for>
@@ -118,10 +118,16 @@
 			<param name="CRLF" value="unix" />
 			<param name="erroronmissingdir" value="false" />
 		</antcall>
+		<antcall target="transformationCopyIterator" inheritAll="true">
+			<param name="template-area" value="templates-bundle"/>
+			<param name="template-target" value="${serverType}"/>
+			<param name="template-target-prefix" value="bundle"/>
+		</antcall>
 		<tar destfile="${buildDir}/${maven.project.artifactId}-${serverType}-${envName}.tar">
-			<tarfileset dir="${buildDir}/environments/${envName}/bundle/${serverType}" includes="**/*" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
-			<tarfileset dir="${buildDir}/environments/${envName}/serverTars/${serverType}" includes="**/*" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
-			<tarfileset dir="${buildDir}" includes="*-buildversion.xml" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
+			<tarfileset dir="${buildDir}/environments/${envName}/bundle/${serverType}" includes="**/*" excludes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false"/>
+			<tarfileset dir="${buildDir}/environments/${envName}/bundle/${serverType}" includes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${EXECMODE}" dirmode="${DIRMODE}" erroronmissingdir="false"/>
+			<tarfileset dir="${buildDir}/environments/${envName}/serverTars/${serverType}" includes="**/*" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false"/>
+			<tarfileset dir="${buildDir}" includes="*-buildversion.properties" prefix="META-INF" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false"/>
 		</tar>
 	</target>
 
@@ -237,14 +243,22 @@
 			<param name="filterPropertiesFile" value="${envFile}" />
 			<param name="CRLF" value="unix" />
 		</antcall>
+		<antcall target="transformationCopyIterator" inheritAll="true">
+			<param name="template-area" value="templates-overlay"/>
+			<param name="template-target" value="${serverType}/${instanceName}"/>
+			<param name="template-target-prefix" value="serverType"/>
+		</antcall>
+	</target>
+
+	<target name="transformationCopyIterator">
 		<for param="transformation">
 			<path>
-				<dirset dir="templates-overlay/fileTransformations" includes="*" erroronmissingdir="true" />
+				<dirset dir="${template-area}/fileTransformations" includes="*" erroronmissingdir="false" />
 			</path>
 			<sequential>
 				<local name="transformationName" />
-				<basename property="transformationName" file="@{transformation}" />
-				<echo>Transformation @{transformation}</echo>
+				<basename property="transformationName" file="@{transformation}"/>
+				<echo>Transformation @{transformation}</echo> 
 				<if>
 					<and>
 						<available file="@{transformation}/serverType/${serverType}" type="dir" />
@@ -254,6 +268,9 @@
 						<antcall target="transformationCopy" inheritAll="true">
 							<param name="transformation" value="@{transformation}" />
 							<param name="transformationName" value="${transformationName}" />
+							<param name="template-area" value="${template-area}"/>
+							<param name="template-target" value="${template-target}"/>
+							<param name="template-target-prefix" value="${template-target-prefix}"/>
 						</antcall>
 					</then>
 					<else>
@@ -265,55 +282,55 @@
 	</target>
 
 	<target name="transformationCopy">
-		<echo>Tranformation processing "${transformationName}" for ${serverType} / ${instanceName}</echo>
-		<!-- First process the files through the standard template transformations -->
-		<antcall target="copyWithTransformations" inheritAll="true">
-			<param name="copySource" value="${transformation}/serverType/${serverType}" />
-			<param name="copyTarget" value="${buildDir}/environments/${envName}/transformations/${transformationName}/${serverType}/${instanceName}" />
-			<param name="filterPropertiesFile" value="${envFile}" />
-			<param name="CRLF" value="unix" />
-			<param name="erroronmissingdir" value="false" />
-		</antcall>
-		<!-- then package the file into the tranformation template -->
-		<pathconvert property="registryFiles" pathsep="," dirsep="/">
-			<path>
-				<fileset dir="${buildDir}/environments/${envName}/transformations/${transformationName}/${serverType}/${instanceName}" includes="**/*" />
-			</path>
-			<map from="${basedir}/${buildDir}/environments/${envName}/transformations/${transformationName}/${serverType}/${instanceName}/" to="" />
-		</pathconvert>
-		<for param="registryFile" list="${registryFiles}">
-			<sequential>
-				<copy todir="${buildDir}/environments/${envName}/serverType/${serverType}/${instanceName}">
-					<fileset dir="${buildDir}/environments/${envName}/transformations/${transformationName}/${serverType}/${instanceName}" erroronmissingdir="false">
-						<filename name="@{registryFile}" />
-					</fileset>
-					<filterchain>
-						<filterreader classname="com.trusolve.ant.filters.ProcessTemplateScriptFilter">
-							<classpath>
-								<pathelement path="${plugin_classpath}" />
-							</classpath>
-							<param name="scriptType" value="bsh" />
-							<param name="baseScriptTemplate" value="${transformation}/${transformationName}.sht" />
-							<param name="fileName" value="@{registryFile}" />
-						</filterreader>
-					</filterchain>
-				</copy>
-			</sequential>
-		</for>
-		<!-- if there are any final activities required for this transformation, they will be defined here -->
-		<if>
-			<available file="${transformation}/build.xml" />
-			<then>
-				<ant antfile="${transformation}/build.xml" />
-			</then>
-		</if>
+			<echo>Tranformation processing "${transformationName}" for ${template-area} / ${template-target} / ${template-target-prefix} / ${serverType} / ${instanceName}</echo>
+			<!-- First process the files through the standard template transformations -->
+			<antcall target="copyWithTransformations" inheritAll="true">
+				<param name="copySource" value="${transformation}/serverType/${serverType}" />
+				<param name="copyTarget" value="${buildDir}/environments/${envName}/transformations-${template-area}/${transformationName}/${template-target}" />
+				<param name="filterPropertiesFile" value="${envFile}" />
+				<param name="CRLF" value="unix" />
+				<param name="erroronmissingdir" value="false" />
+			</antcall>
+			<!-- then package the file into the tranformation template -->
+			<pathconvert property="registryFiles" pathsep="," dirsep="/">
+				<path>
+					<fileset dir="${buildDir}/environments/${envName}/transformations-${template-area}/${transformationName}/${template-target}" includes="**/*"/>
+				</path>
+				<map from="${basedir}/${buildDir}/environments/${envName}/transformations-${template-area}/${transformationName}/${template-target}/" to=""/>
+			</pathconvert>
+			<for param="registryFile" list="${registryFiles}">
+				<sequential>
+					<copy todir="${buildDir}/environments/${envName}/${template-target-prefix}/${template-target}">
+						<fileset dir="${buildDir}/environments/${envName}/transformations-${template-area}/${transformationName}/${template-target}" erroronmissingdir="false">
+							<filename name="@{registryFile}"/>
+						</fileset>
+						<filterchain>
+							<filterreader classname="com.trusolve.ant.filters.ProcessTemplateScriptFilter">
+								<classpath>
+									<pathelement path="${plugin_classpath}" />
+								</classpath>
+								<param name="scriptType" value="bsh" />
+								<param name="baseScriptTemplate" value="${transformation}/${transformationName}.sht" />
+								<param name="fileName" value="@{registryFile}" />
+							</filterreader>
+						</filterchain>
+					</copy>
+				</sequential>
+			</for>
+			<!-- if there are any final activities required for this transformation, they will be defined here -->
+			<if>
+				<available file="${transformation}/build.xml" />
+				<then>
+					<ant antfile="${transformation}/build.xml"/>
+				</then>
+			</if>
 	</target>
 
 	<target name="copyWithTransformations">
 		<property name="CRLF" value="unix" />
 		<property name="filterPropertiesFile" value="filterPropertiesFile.properties" />
-		<property name="erroronmissingdir" value="true" />
-		<property name="extensionPostFix" value="" />
+		<property name="erroronmissingdir" value="true"/>
+		<property name="extensionPostFix" value=""/>
 		<filterset id="copyFilterSet" begintoken="%%" endtoken="%%" onmissingfiltersfile="warn">
 			<filtersfile file="${filterPropertiesFile}" />
 			<filter token="envName" value="${envName}" />
@@ -328,7 +345,7 @@
 			</fileset>
 			<chainedmapper>
 				<globmapper from="*.sht" to="*" />
-				<globmapper from="*" to="*${extensionPostFix}" />
+				<globmapper from="*" to="*${extensionPostFix}"/>
 			</chainedmapper>
 			<filterchain>
 				<filterreader classname="com.trusolve.ant.filters.ScriptTemplateFilter">
@@ -349,7 +366,7 @@
 				<exclude name="**/*.sht" />
 			</fileset>
 			<chainedmapper>
-				<globmapper from="*" to="*${extensionPostFix}" />
+				<globmapper from="*" to="*${extensionPostFix}"/>
 			</chainedmapper>
 			<filterchain>
 				<fixcrlf eol="${CRLF}" />
@@ -362,7 +379,7 @@
 				<type type="file" />
 			</fileset>
 			<chainedmapper>
-				<globmapper from="*" to="*${extensionPostFix}" />
+				<globmapper from="*" to="*${extensionPostFix}"/>
 			</chainedmapper>
 		</copy>
 	</target>

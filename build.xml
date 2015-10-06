@@ -21,6 +21,10 @@
 				</ant>
 			</sequential>
 		</for>
+		<tar destfile="${buildDir}/${maven.project.artifactId}-environments.tar">
+			<tarfileset dir="environments" includes="**/*.properties" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${EXECMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
+			<tarfileset dir="${buildDir}" includes="*-buildversion.properties" prefix="META-INF" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
+		</tar>
 	</target>
 
 	<target name="serverType">
@@ -44,10 +48,13 @@
 			</union>
 			<sequential>
 				<tar destfile="${buildDir}/${maven.project.artifactId}-allServerType-@{serverType}.tar">
+					<tarfileset dir="${buildDir}/allServers" includes="**/*" excludes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
+					<tarfileset dir="${buildDir}/allServers" includes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${EXECMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
 					<tarfileset dir="${buildDir}/serverType/@{serverType}" includes="**/*" excludes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
 					<tarfileset dir="${buildDir}/serverType/@{serverType}" includes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${EXECMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
 					<tarfileset dir="templates-serverType/@{serverType}" includes="**/*" excludes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
 					<tarfileset dir="templates-serverType/@{serverType}" includes="${EXECUTABLES}" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${EXECMODE}" dirmode="${DIRMODE}" erroronmissingdir="false" />
+					<tarfileset dir="${buildDir}" includes="*-buildversion.properties" prefix="META-INF" username="${FILEOWNER}" group="${FILEGROUP}" filemode="${FILEMODE}" dirmode="${DIRMODE}" erroronmissingdir="false"/>
 				</tar>
 			</sequential>
 		</for>
